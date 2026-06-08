@@ -2,32 +2,32 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Safe Browser — Современный веб-обозреватель</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Safe Browser — Современный адаптивный браузер</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            user-select: none; /* небольшая эстетика, текст в адресной строке можно выделить отдельно */
         }
 
         body {
-            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            font-family: system-ui, -apple-system, 'Segoe UI', 'Inter', 'Roboto', sans-serif;
             background: #0f172a;
             height: 100vh;
             overflow: hidden;
             position: relative;
+            touch-action: pan-x pan-y; /* плавный скролл внутри iframe */
         }
 
-        /* ----- КРАСИВАЯ ПЛАВНАЯ ЗАГРУЗКА (сплэш) ----- */
+        /* ----- КРАСИВАЯ ПЛАВНАЯ ЗАГРУЗКА (сплэш) с адаптацией ----- */
         .splash-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: radial-gradient(circle at 20% 30%, #0a0f1e, #0f172a);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -41,67 +41,69 @@
             text-align: center;
             transform: translateY(-20px);
             animation: fadeInUp 0.8s ease-out forwards;
+            padding: 20px;
         }
 
         .splash-logo {
-            width: 140px;
-            height: 140px;
-            margin-bottom: 30px;
-            filter: drop-shadow(0 12px 20px rgba(0,0,0,0.3));
+            width: min(160px, 35vw);
+            height: auto;
+            margin-bottom: 24px;
+            filter: drop-shadow(0 20px 25px rgba(0,0,0,0.4));
             animation: gentleFloat 2s infinite ease-in-out;
         }
 
         .splash-logo img {
             width: 100%;
-            height: 100%;
-            object-fit: contain;
+            height: auto;
+            display: block;
         }
 
         .splash-title {
-            font-size: 3rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #FFFFFF, #94a3b8);
+            font-size: clamp(2.2rem, 10vw, 3.8rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, #FFFFFF, #a5b4fc);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            letter-spacing: -0.5px;
-            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
         }
 
         .splash-sub {
-            color: #cbd5e6;
-            font-weight: 400;
-            font-size: 1.1rem;
-            margin-top: 8px;
+            color: #94a3b8;
+            font-weight: 500;
+            font-size: clamp(0.85rem, 4vw, 1.1rem);
+            margin-top: 6px;
+            opacity: 0.9;
         }
 
         .progress-bar-container {
-            width: 240px;
-            height: 3px;
+            width: min(240px, 60vw);
+            height: 4px;
             background: rgba(255,255,255,0.2);
             border-radius: 20px;
-            margin-top: 40px;
+            margin-top: 32px;
             overflow: hidden;
         }
 
         .progress-fill {
             width: 0%;
             height: 100%;
-            background: linear-gradient(90deg, #60a5fa, #a855f7);
+            background: linear-gradient(90deg, #60a5fa, #c084fc);
             border-radius: 20px;
-            animation: loadProgress 1.2s ease-out forwards;
+            animation: loadProgress 1.3s ease-out forwards;
         }
 
         @keyframes loadProgress {
             0% { width: 0%; }
-            40% { width: 65%; }
+            45% { width: 70%; }
             100% { width: 100%; }
         }
 
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(30px);
+                transform: translateY(40px);
             }
             to {
                 opacity: 1;
@@ -111,7 +113,7 @@
 
         @keyframes gentleFloat {
             0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-12px); }
             100% { transform: translateY(0px); }
         }
 
@@ -120,7 +122,7 @@
             visibility: hidden;
         }
 
-        /* ----- ОСНОВНОЙ ИНТЕРФЕЙС БРАУЗЕРА (стиль Google Style) ----- */
+        /* ----- ОСНОВНОЙ ИНТЕРФЕЙС БРАУЗЕРА (адаптивный, Google Style) ----- */
         .browser-container {
             display: flex;
             flex-direction: column;
@@ -135,52 +137,72 @@
             opacity: 1;
         }
 
-        /* Верхняя панель вкладок */
-        .tabs-bar {
-            background: #ffffff;
-            border-bottom: 1px solid #e2e8f0;
+        /* Панель вкладок — горизонтальный скролл, удобно для пальцев */
+        .tabs-wrapper {
             display: flex;
             align-items: center;
-            padding-left: 12px;
-            padding-right: 8px;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            flex-shrink: 0;
             gap: 2px;
             overflow-x: auto;
+            overflow-y: hidden;
             scrollbar-width: thin;
-            flex-shrink: 0;
-            height: 44px;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+        }
+
+        .tabs-bar {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            flex: 1;
+            padding-left: 8px;
+            min-width: min-content;
         }
 
         .tab-item {
             background: #f1f5f9;
-            border-radius: 10px 10px 0 0;
+            border-radius: 14px 14px 0 0;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 0 18px 0 14px;
-            height: 38px;
+            gap: 6px;
+            padding: 0 12px 0 14px;
+            height: 42px;
             font-size: 13px;
             font-weight: 500;
             color: #1e293b;
             border: none;
-            border-right: 1px solid #e2e8f0;
             cursor: pointer;
             transition: all 0.2s;
             white-space: nowrap;
-            position: relative;
-            max-width: 220px;
+            max-width: 170px;
+            flex-shrink: 0;
+            touch-action: manipulation;
+        }
+
+        @media (max-width: 600px) {
+            .tab-item {
+                max-width: 130px;
+                padding: 0 8px 0 10px;
+                font-size: 12px;
+            }
+            .tab-title {
+                max-width: 80px;
+            }
         }
 
         .tab-item.active {
             background: white;
             color: #2563eb;
             border-bottom: 2px solid #2563eb;
-            box-shadow: 0 -1px 2px rgba(0,0,0,0.02);
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.02);
         }
 
         .tab-title {
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 140px;
+            white-space: nowrap;
         }
 
         .tab-close {
@@ -189,13 +211,14 @@
             font-size: 18px;
             color: #94a3b8;
             cursor: pointer;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
+            border-radius: 40px;
+            width: 24px;
+            height: 24px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
+            touch-action: manipulation;
         }
 
         .tab-close:hover {
@@ -206,30 +229,32 @@
         .new-tab-btn {
             background: transparent;
             border: none;
-            font-size: 22px;
+            font-size: 26px;
+            font-weight: 400;
             color: #3b82f6;
             cursor: pointer;
-            width: 32px;
-            height: 32px;
-            border-radius: 30px;
+            width: 44px;
+            height: 42px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
-            margin-left: 4px;
+            flex-shrink: 0;
+            touch-action: manipulation;
         }
 
-        .new-tab-btn:hover {
+        .new-tab-btn:active {
             background: #eef2ff;
+            transform: scale(0.95);
         }
 
-        /* Адресная строка + навигация */
+        /* Адаптивная навигационная панель (сворачивается по ширине) */
         .nav-bar {
             background: white;
-            padding: 10px 20px;
+            padding: 8px 12px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
             flex-wrap: wrap;
             border-bottom: 1px solid #e2e8f0;
             flex-shrink: 0;
@@ -237,28 +262,29 @@
 
         .nav-buttons {
             display: flex;
-            gap: 8px;
+            gap: 6px;
         }
 
         .nav-btn {
             background: #f1f5f9;
             border: none;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            font-size: 18px;
-            font-weight: bold;
+            width: 40px;
+            height: 40px;
+            border-radius: 40px;
+            font-size: 20px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             color: #1e293b;
+            touch-action: manipulation;
         }
 
-        .nav-btn:hover {
+        .nav-btn:active {
             background: #e2e8f0;
-            transform: scale(0.96);
+            transform: scale(0.94);
         }
 
         .url-container {
@@ -267,32 +293,35 @@
             align-items: center;
             background: #f1f5f9;
             border-radius: 60px;
-            padding: 4px 16px;
+            padding: 4px 12px;
             border: 1px solid #e2e8f0;
             transition: all 0.2s;
+            min-width: 0;
         }
 
         .url-container:focus-within {
             background: white;
-            box-shadow: 0 0 0 2px #3b82f640;
+            box-shadow: 0 0 0 3px #3b82f640;
             border-color: #3b82f6;
         }
 
         .url-icon {
             font-size: 18px;
-            margin-right: 10px;
+            margin-right: 6px;
             color: #5b6e8c;
+            flex-shrink: 0;
         }
 
         #urlInput {
             flex: 1;
             border: none;
             background: transparent;
-            font-size: 15px;
+            font-size: clamp(14px, 4vw, 16px);
             padding: 10px 0;
             outline: none;
             font-weight: 500;
             color: #0f172a;
+            min-width: 40px;
         }
 
         .go-btn {
@@ -300,22 +329,44 @@
             color: white;
             border: none;
             border-radius: 40px;
-            padding: 8px 20px;
+            padding: 8px 18px;
             font-weight: 600;
+            font-size: 14px;
             cursor: pointer;
             transition: all 0.2s;
+            white-space: nowrap;
+            touch-action: manipulation;
         }
 
-        .go-btn:hover {
+        .go-btn:active {
             background: #2563eb;
-            transform: scale(1.02);
+            transform: scale(0.96);
         }
 
-        /* Контент: iframe webview */
+        @media (max-width: 550px) {
+            .nav-bar {
+                padding: 6px 10px;
+                gap: 6px;
+            }
+            .nav-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+            .go-btn {
+                padding: 6px 14px;
+                font-size: 13px;
+            }
+            .url-icon {
+                font-size: 14px;
+            }
+        }
+
+        /* контейнер веб-страниц */
         .webview-container {
             flex: 1;
             position: relative;
-            background: #fff;
+            background: #ffffff;
             overflow: hidden;
         }
 
@@ -323,6 +374,7 @@
             width: 100%;
             height: 100%;
             position: relative;
+            background: white;
         }
 
         .browser-iframe {
@@ -332,23 +384,26 @@
             background: white;
         }
 
+        /* Индикатор загрузки стильный */
         .loading-indicator {
             position: absolute;
-            top: 10px;
-            right: 20px;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(6px);
+            top: 12px;
+            right: 16px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
             color: white;
-            padding: 6px 12px;
+            padding: 6px 16px;
             border-radius: 40px;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 500;
-            z-index: 20;
+            z-index: 25;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             pointer-events: none;
             transition: opacity 0.2s;
+            font-family: monospace;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         .spinner {
@@ -362,72 +417,70 @@
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* контекст для адаптива */
+        /* адаптивные полосы прокрутки */
         ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 4px;
+            height: 4px;
+        }
+        
+        /* блокировка нежелательных выделений на кнопках */
+        button {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
     </style>
 </head>
 <body>
 
-<!-- Эффектная загрузка -->
+<!-- Эффектная загрузка с вашим лого -->
 <div class="splash-screen" id="splashScreen">
     <div class="splash-content">
         <div class="splash-logo">
-            <img src="https://i.ibb.co/93CvtLb7/editing-result-3ac774ce636b11f1b8095e9b74bede64-1-no-bg-preview-carve-photos.png" alt="Safe Logo">
+            <img src="https://i.ibb.co/93CvtLb7/editing-result-3ac774ce636b11f1b8095e9b74bede64-1-no-bg-preview-carve-photos.png" alt="Safe Browser Logo">
         </div>
         <div class="splash-title">Safe</div>
-        <div class="splash-sub">Безопасный, быстрый, современный</div>
+        <div class="splash-sub">Адаптивный. Быстрый. Безопасный.</div>
         <div class="progress-bar-container">
             <div class="progress-fill"></div>
         </div>
     </div>
 </div>
 
-<!-- Главный интерфейс браузера -->
+<!-- Главный интерфейс браузера (мобильная / десктопная адаптация) -->
 <div class="browser-container" id="browserContainer">
-    <!-- Панель вкладок (как Chrome/Google) -->
-    <div class="tabs-bar" id="tabsBar">
-        <!-- Динамические вкладки -->
+    <!-- Вкладки с горизонтальным скроллом -->
+    <div class="tabs-wrapper">
+        <div class="tabs-bar" id="tabsBar"></div>
+        <button class="new-tab-btn" id="newTabButton" aria-label="Новая вкладка">+</button>
     </div>
-    <button class="new-tab-btn" id="newTabButton" style="margin-left: auto; margin-right: 12px;">+</button>
 
-    <!-- Навигационная панель Google-style -->
+    <!-- Навигационная панель (Google style) -->
     <div class="nav-bar">
         <div class="nav-buttons">
-            <button class="nav-btn" id="backBtn" title="Назад">◀</button>
-            <button class="nav-btn" id="forwardBtn" title="Вперёд">▶</button>
-            <button class="nav-btn" id="reloadBtn" title="Обновить">⟳</button>
+            <button class="nav-btn" id="backBtn" title="Назад" aria-label="Назад">◀</button>
+            <button class="nav-btn" id="forwardBtn" title="Вперёд" aria-label="Вперёд">▶</button>
+            <button class="nav-btn" id="reloadBtn" title="Обновить" aria-label="Обновить">⟳</button>
         </div>
         <div class="url-container">
             <span class="url-icon">🔒</span>
-            <input type="text" id="urlInput" placeholder="Введите адрес или поисковый запрос" autocomplete="off">
+            <input type="text" id="urlInput" placeholder="Поиск или введите адрес" autocomplete="off" enterkeyhint="go">
             <button class="go-btn" id="goBtn">Перейти</button>
         </div>
     </div>
 
-    <!-- Область отображения страниц (iframe) -->
+    <!-- Область просмотра сайтов -->
     <div class="webview-container" id="webviewContainer">
-        <!-- сюда динамически будем вставлять iframe для активной вкладки -->
-        <div class="iframe-wrapper" id="activeFrameWrapper">
-            <iframe class="browser-iframe" id="activeIframe" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation-by-user-activation allow-downloads" src="https://www.google.com"></iframe>
+        <div class="iframe-wrapper" id="activeFramePlaceholder" style="display: flex;">
+            <!-- iframe будут динамически создаваться -->
         </div>
-        <div class="loading-indicator" id="globalLoading" style="opacity:0;">🌀 Загрузка...</div>
+        <div class="loading-indicator" id="globalLoading" style="opacity:0;">
+            <div class="spinner"></div> Загрузка...
+        </div>
     </div>
 </div>
 
 <script>
-    // ---------- Модель вкладок (реальная работа с iframe и историей) ----------
-    // Каждая вкладка: { id, title, url, iframe, canGoBack, canGoForward, iframeSrc }
-    // но для простоты и стабильности мы будем динамически переключать единый iframe и сохранять состояние URL, заголовка.
-    // Однако чтобы по-настоящему поддерживать несколько вкладок с сохранением истории и содержимого,
-    // используем технику создания/удаления iframe при переключении вкладок? Лучше: держим массив вкладок, каждая хранит URL и текущий iframe-элемент.
-    // Так как напрямую манипулировать iframe.contentWindow.history сложно, но для пользователя "вкладки как в браузере" достаточно хранить url и 
-    // при переключении пересоздавать iframe с тем же URL. Это даст идеальный сброс/сохранение. Навигация назад/вперед через iframe.contentWindow.history, но 
-    // чтобы работало с iframe нужно использовать iframe.contentWindow.history.back() — это поддерживается.
-    // Реализуем продвинуто: каждая вкладка хранит свой элемент iframe динамически, и при переключении показываем нужный iframe.
-    
+    // ---------- ПОЛНОСТЬЮ ФУНКЦИОНАЛЬНЫЙ БРАУЗЕР С ВКЛАДКАМИ, ИСТОРИЕЙ, АДАПТАЦИЕЙ ----------
     let tabs = [];
     let activeTabId = null;
     let tabCounter = 1;
@@ -442,37 +495,38 @@
     const forwardBtn = document.getElementById('forwardBtn');
     const reloadBtn = document.getElementById('reloadBtn');
     const globalLoading = document.getElementById('globalLoading');
-    
-    // Утилиты для загрузки
-    let loadingTimeout = null;
+
+    // Управление индикатором загрузки с таймаутами
+    let loadingTimer = null;
     function showLoading(show = true) {
         if(show) {
+            if(loadingTimer) clearTimeout(loadingTimer);
             globalLoading.style.opacity = '1';
-            if(loadingTimeout) clearTimeout(loadingTimeout);
         } else {
-            globalLoading.style.opacity = '0';
+            loadingTimer = setTimeout(() => {
+                globalLoading.style.opacity = '0';
+            }, 200);
         }
     }
-    
-    function updateLoadingForIframe(iframe, tabId) {
-        if(!iframe) return;
-        const onStart = () => { if(activeTabId === tabId) showLoading(true); };
-        const onEnd = () => { if(activeTabId === tabId) setTimeout(() => showLoading(false), 200); };
-        iframe.addEventListener('loadstart', onStart);
-        iframe.addEventListener('load', onEnd);
-        iframe.addEventListener('error', onEnd);
-        // немного магии для совместимости, loadstart нестандартный, используем load
-        iframe.onload = () => { if(activeTabId === tabId) showLoading(false); };
-        iframe.onloadstart = () => { if(activeTabId === tabId) showLoading(true); };
-        if (iframe.contentWindow?.document?.readyState !== 'complete') {
-            if(activeTabId === tabId) showLoading(true);
-            setTimeout(() => { if(activeTabId === tabId && iframe.contentWindow?.document?.readyState === 'complete') showLoading(false); }, 500);
-        } else {
-            if(activeTabId === tabId) showLoading(false);
+
+    // Функция для обновления состояния кнопок назад/вперед (по возможности)
+    async function updateNavButtonsState(tab) {
+        if(!tab || !tab.iframeElement || !tab.iframeElement.contentWindow) {
+            backBtn.disabled = false;
+            forwardBtn.disabled = false;
+            return;
+        }
+        try {
+            const historyLength = tab.iframeElement.contentWindow.history.length;
+            backBtn.disabled = (historyLength <= 1);
+            forwardBtn.disabled = false; // точнее проверить сложно, но даём возможность
+        } catch(e) {
+            backBtn.disabled = false;
+            forwardBtn.disabled = false;
         }
     }
-    
-    // Создание нового iframe с заданным URL
+
+    // Создать iframe для вкладки с привязкой событий загрузки
     function createIframeForTab(tabId, url) {
         const iframe = document.createElement('iframe');
         iframe.className = 'browser-iframe';
@@ -480,39 +534,54 @@
         iframe.style.height = '100%';
         iframe.style.border = 'none';
         iframe.style.display = 'block';
-        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation-by-user-activation allow-downloads');
+        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation-by-user-activation allow-downloads allow-popups-to-escape-sandbox');
         iframe.src = url || 'https://www.google.com';
-        // обрабатываем обновление заголовка страницы (через postMessage нельзя, но можем попробовать отследить)
+        
+        // Обработчики для обновления заголовка и синхронизации URL
         iframe.addEventListener('load', function() {
             const tab = tabs.find(t => t.id === tabId);
             if(tab) {
                 try {
-                    let newTitle = iframe.contentDocument?.title;
-                    if(newTitle && newTitle.trim()) {
-                        tab.title = newTitle.substring(0, 35);
+                    let docTitle = iframe.contentDocument?.title;
+                    if(docTitle && docTitle.trim()) {
+                        tab.title = docTitle.substring(0, 45);
                     } else {
-                        let hostname = new URL(iframe.src).hostname;
-                        tab.title = hostname || 'Новая вкладка';
+                        let host = new URL(iframe.src).hostname;
+                        tab.title = host || 'Safe Page';
                     }
-                } catch(e) { tab.title = 'Safe страница'; }
-                updateTabUI();
+                    let currentUrl = iframe.contentWindow?.location?.href;
+                    if(currentUrl && currentUrl !== tab.url) {
+                        tab.url = currentUrl;
+                    }
+                } catch(e) {
+                    tab.title = 'Новая вкладка';
+                }
+                renderTabs();
                 if(activeTabId === tabId) {
                     urlInput.value = tab.url;
+                    updateNavButtonsState(tab);
                 }
             }
             if(activeTabId === tabId) showLoading(false);
         });
-        iframe.addEventListener('error', () => { if(activeTabId === tabId) showLoading(false); });
+        
+        iframe.addEventListener('error', () => {
+            if(activeTabId === tabId) showLoading(false);
+        });
+        
         return iframe;
     }
-    
-    // добавить вкладку
+
+    // Добавить новую вкладку
     function addTab(url = 'https://www.google.com', activate = true) {
         const id = Date.now() + tabCounter++;
-        const title = 'Новая вкладка';
-        const newTab = { id, title, url, iframeElement: null, wrapper: null };
-        tabs.push(newTab);
-        // создаем iframe и оборачиваем
+        const newTab = {
+            id: id,
+            title: 'Новая вкладка',
+            url: url,
+            iframeElement: null,
+            wrapper: null
+        };
         const iframeEl = createIframeForTab(id, url);
         const wrapperDiv = document.createElement('div');
         wrapperDiv.className = 'iframe-wrapper';
@@ -522,48 +591,57 @@
         wrapperDiv.style.display = 'none';
         wrapperDiv.appendChild(iframeEl);
         webviewContainer.appendChild(wrapperDiv);
+        
         newTab.iframeElement = iframeEl;
         newTab.wrapper = wrapperDiv;
+        tabs.push(newTab);
         
-        updateLoadingForIframe(iframeEl, id);
+        // Привязываем событие изменения URL (периодическая проверка плюс load)
+        iframeEl.addEventListener('load', () => {
+            const t = tabs.find(tab => tab.id === id);
+            if(t && t.iframeElement) {
+                try {
+                    const newUrl = t.iframeElement.contentWindow?.location?.href;
+                    if(newUrl && newUrl !== t.url) {
+                        t.url = newUrl;
+                        if(activeTabId === id) urlInput.value = newUrl;
+                        renderTabs();
+                    }
+                } catch(e) {}
+                updateNavButtonsState(t);
+            }
+        });
         
-        if(activate) {
-            setActiveTab(id);
-        }
+        if(activate) setActiveTab(id);
         renderTabs();
         return id;
     }
-    
+
+    // Активировать вкладку
     function setActiveTab(tabId) {
-        const tabToActivate = tabs.find(t => t.id === tabId);
-        if(!tabToActivate) return;
+        const tab = tabs.find(t => t.id === tabId);
+        if(!tab) return;
         activeTabId = tabId;
-        // прячем все врапперы, показываем активный
-        tabs.forEach(tab => {
-            if(tab.wrapper) tab.wrapper.style.display = 'none';
+        // Скрыть все врапперы, показать активный
+        tabs.forEach(t => {
+            if(t.wrapper) t.wrapper.style.display = 'none';
         });
-        if(tabToActivate.wrapper) {
-            tabToActivate.wrapper.style.display = 'block';
-        }
-        // обновляем адресную строку и кнопки навигации по возможности
-        urlInput.value = tabToActivate.url;
-        // также пытаемся синхронизировать возможность назад/вперед (через iframe)
-        updateNavButtonsState(tabToActivate);
+        if(tab.wrapper) tab.wrapper.style.display = 'block';
+        urlInput.value = tab.url;
+        updateNavButtonsState(tab);
         renderTabs();
-    }
-    
-    function updateNavButtonsState(tab) {
-        if(!tab || !tab.iframeElement || !tab.iframeElement.contentWindow) return;
+        // Дополнительно слегка сбрасываем индикатор загрузки, если страница уже загружена
         try {
-            const canGoBack = tab.iframeElement.contentWindow.history.length > 1;
-            backBtn.disabled = !canGoBack;
-            forwardBtn.disabled = false; // упрощённо, но для полноты: так как вперед сложно проверим, дадим возможность жать
-        } catch(e) {
-            backBtn.disabled = false;
-            forwardBtn.disabled = false;
-        }
+            if(tab.iframeElement && tab.iframeElement.contentDocument && tab.iframeElement.contentDocument.readyState === 'complete') {
+                showLoading(false);
+            } else {
+                showLoading(true);
+                setTimeout(() => { if(activeTabId === tabId) showLoading(false); }, 800);
+            }
+        } catch(e) { showLoading(false); }
     }
-    
+
+    // Закрыть вкладку
     function closeTab(tabId) {
         const index = tabs.findIndex(t => t.id === tabId);
         if(index === -1) return;
@@ -582,7 +660,8 @@
         }
         renderTabs();
     }
-    
+
+    // Отрисовать вкладки в баре
     function renderTabs() {
         tabsBar.innerHTML = '';
         tabs.forEach(tab => {
@@ -601,170 +680,122 @@
             });
             tabDiv.appendChild(titleSpan);
             tabDiv.appendChild(closeSpan);
-            tabDiv.addEventListener('click', () => {
-                setActiveTab(tab.id);
-            });
+            tabDiv.addEventListener('click', () => setActiveTab(tab.id));
             tabsBar.appendChild(tabDiv);
         });
-        // добавим кнопку новой вкладки внутри бара (у нас есть отдельная, но продублируем)
-        const addBtnInline = document.createElement('button');
-        addBtnInline.className = 'new-tab-btn';
-        addBtnInline.innerHTML = '+';
-        addBtnInline.style.marginLeft = '4px';
-        addBtnInline.addEventListener('click', () => addTab('https://www.google.com', true));
-        tabsBar.appendChild(addBtnInline);
     }
-    
-    // Обновить URL активной вкладки и загрузить сайт
-    function navigateTo(url, fromInput = true) {
-        let finalUrl = url.trim();
-        if(!finalUrl) return;
-        // если нет протокола, добавим https:// или ищем как поиск google
-        if(!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-            if(finalUrl.includes('.') && !finalUrl.includes(' ')) {
-                finalUrl = 'https://' + finalUrl;
-            } else {
-                // поиск Google
-                finalUrl = 'https://www.google.com/search?q=' + encodeURIComponent(finalUrl);
-            }
+
+    // Навигация по URL (поддержка поиска)
+    function navigateTo(rawInput) {
+        let query = rawInput.trim();
+        if(!query) return;
+        let finalUrl;
+        if(query.match(/^https?:\/\//i)) {
+            finalUrl = query;
+        } else if(query.includes('.') && !query.includes(' ') && !query.includes('?')) {
+            finalUrl = 'https://' + query;
+        } else {
+            finalUrl = 'https://www.google.com/search?q=' + encodeURIComponent(query);
         }
         const activeTab = tabs.find(t => t.id === activeTabId);
         if(activeTab && activeTab.iframeElement) {
             showLoading(true);
             activeTab.url = finalUrl;
             activeTab.iframeElement.src = finalUrl;
-            // обновим заголовок при загрузке
             activeTab.title = 'Загрузка...';
             renderTabs();
             urlInput.value = finalUrl;
-            // после окончания загрузки tab title обновится в load-событии
         }
     }
-    
-    // навигация назад
+
+    // Навигация назад/вперед с синхронизацией
     function goBack() {
         const activeTab = tabs.find(t => t.id === activeTabId);
-        if(activeTab && activeTab.iframeElement && activeTab.iframeElement.contentWindow) {
+        if(activeTab?.iframeElement?.contentWindow) {
             try {
                 activeTab.iframeElement.contentWindow.history.back();
                 setTimeout(() => {
                     if(activeTab.iframeElement && activeTab.iframeElement.src) {
                         activeTab.url = activeTab.iframeElement.src;
                         urlInput.value = activeTab.url;
-                        updateTabUI();
+                        renderTabs();
+                        updateNavButtonsState(activeTab);
                     }
-                }, 150);
+                }, 120);
             } catch(e) { console.warn(e); }
         }
     }
     
     function goForward() {
         const activeTab = tabs.find(t => t.id === activeTabId);
-        if(activeTab && activeTab.iframeElement && activeTab.iframeElement.contentWindow) {
+        if(activeTab?.iframeElement?.contentWindow) {
             try {
                 activeTab.iframeElement.contentWindow.history.forward();
                 setTimeout(() => {
                     if(activeTab.iframeElement && activeTab.iframeElement.src) {
                         activeTab.url = activeTab.iframeElement.src;
                         urlInput.value = activeTab.url;
-                        updateTabUI();
+                        renderTabs();
+                        updateNavButtonsState(activeTab);
                     }
-                }, 150);
+                }, 120);
             } catch(e) { console.warn(e); }
         }
     }
     
     function reloadPage() {
         const activeTab = tabs.find(t => t.id === activeTabId);
-        if(activeTab && activeTab.iframeElement) {
+        if(activeTab?.iframeElement) {
             showLoading(true);
             activeTab.iframeElement.src = activeTab.iframeElement.src;
         }
     }
-    
-    function updateTabUI() {
-        const activeTab = tabs.find(t => t.id === activeTabId);
-        if(activeTab) {
-            urlInput.value = activeTab.url;
-            renderTabs();
-        }
-    }
-    
-    // дополнительная прослушка изменений iframe (изменение URL внутри страницы)
-    function attachIframeNavigationListener(tab) {
-        if(!tab.iframeElement) return;
-        // периодическая проверка изменения src (нельзя перехватить все навигации идеально, но через load - ок)
-        tab.iframeElement.addEventListener('load', () => {
-            if(tab.id === activeTabId) {
-                try {
-                    let newUrl = tab.iframeElement.contentWindow.location.href;
-                    if(newUrl && newUrl !== tab.url) {
-                        tab.url = newUrl;
-                        urlInput.value = newUrl;
-                        updateTabUI();
-                    }
-                    let title = tab.iframeElement.contentDocument?.title;
-                    if(title) tab.title = title.substring(0, 40);
+
+    // Периодическая синхронизация URL для активной вкладки (ловим переходы по ссылкам внутри)
+    setInterval(() => {
+        const active = tabs.find(t => t.id === activeTabId);
+        if(active && active.iframeElement && active.iframeElement.contentWindow) {
+            try {
+                let currentHref = active.iframeElement.contentWindow.location.href;
+                if(currentHref && currentHref !== active.url) {
+                    active.url = currentHref;
+                    urlInput.value = currentHref;
                     renderTabs();
-                } catch(e) { /* cross-origin иногда */ }
-            } else {
-                try {
-                    if(tab.iframeElement.src) tab.url = tab.iframeElement.src;
-                } catch(e){}
-            }
-            updateNavButtonsState(tab);
-            if(tab.id === activeTabId) showLoading(false);
-        });
-    }
-    
-    // перепривяжем все существующие
-    function bindAllIframes() {
-        tabs.forEach(tab => {
-            if(tab.iframeElement) {
-                attachIframeNavigationListener(tab);
-                updateLoadingForIframe(tab.iframeElement, tab.id);
-            }
-        });
-    }
-    
-    // Инициализация: добавляем стартовую вкладку
-    function initBrowser() {
+                }
+                // обновляем заголовок
+                let newTitle = active.iframeElement.contentDocument?.title;
+                if(newTitle && newTitle !== active.title) {
+                    active.title = newTitle.substring(0, 45);
+                    renderTabs();
+                }
+                updateNavButtonsState(active);
+            } catch(e) {}
+        }
+    }, 900);
+
+    // Инициализация браузера после сплэша
+    function initBrowserCore() {
         addTab('https://www.google.com', true);
-        bindAllIframes();
-        // события кнопок
-        goBtn.addEventListener('click', () => navigateTo(urlInput.value, true));
-        urlInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') navigateTo(urlInput.value, true); });
+        
+        goBtn.addEventListener('click', () => navigateTo(urlInput.value));
+        urlInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') navigateTo(urlInput.value); });
         backBtn.addEventListener('click', goBack);
         forwardBtn.addEventListener('click', goForward);
         reloadBtn.addEventListener('click', reloadPage);
         newTabBtn.addEventListener('click', () => addTab('https://www.google.com', true));
-        // также ловим изменение в iframe через setInterval синхронизацию url
-        setInterval(() => {
-            const active = tabs.find(t => t.id === activeTabId);
-            if(active && active.iframeElement && active.iframeElement.contentWindow) {
-                try {
-                    let currentUrl = active.iframeElement.contentWindow.location.href;
-                    if(currentUrl && currentUrl !== active.url) {
-                        active.url = currentUrl;
-                        urlInput.value = currentUrl;
-                        renderTabs();
-                    }
-                } catch(e) {}
-                updateNavButtonsState(active);
-            }
-        }, 800);
+        
+        // Адаптивное поведение для мобильных: отключаем двойной зум на кнопках (через CSS уже)
     }
-    
-    // Запуск после загрузки и скрытие сплэша
+
+    // Запуск с анимацией сплэша
     window.addEventListener('load', () => {
-        // небольшая задержка для красивого прогресс-бара
         setTimeout(() => {
             const splash = document.getElementById('splashScreen');
             splash.classList.add('splash-hidden');
             const browser = document.getElementById('browserContainer');
             browser.classList.add('browser-visible');
-            initBrowser();
-        }, 1400);
+            initBrowserCore();
+        }, 1500);
     });
 </script>
 </body>
