@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Safe Browser — Современный безопасный браузер</title>
+    <title>Safe Browser — Обход ограничений iframe</title>
     <style>
         * {
             margin: 0;
@@ -19,7 +19,7 @@
             position: relative;
         }
 
-        /* ----- КРАСИВАЯ ПЛАВНАЯ ЗАГРУЗКА (сплэш) ----- */
+        /* ----- СПЛЭШ ЭКРАН ----- */
         .splash-screen {
             position: fixed;
             top: 0;
@@ -32,7 +32,7 @@
             justify-content: center;
             align-items: center;
             z-index: 3000;
-            transition: opacity 0.8s cubic-bezier(0.23, 1, 0.32, 1), visibility 0s linear 0.8s;
+            transition: opacity 0.8s ease, visibility 0s linear 0.8s;
         }
 
         .splash-content {
@@ -41,7 +41,6 @@
             padding: 20px;
         }
 
-        /* Градиентное лого вместо картинки */
         .splash-logo {
             width: min(140px, 30vw);
             height: min(140px, 30vw);
@@ -59,7 +58,6 @@
             font-size: min(70px, 15vw);
             font-weight: 800;
             color: white;
-            text-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
 
         .splash-title {
@@ -69,7 +67,6 @@
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            letter-spacing: -0.02em;
             margin-bottom: 8px;
         }
 
@@ -77,7 +74,6 @@
             color: #94a3b8;
             font-weight: 500;
             font-size: clamp(0.85rem, 4vw, 1.1rem);
-            margin-top: 6px;
         }
 
         .progress-bar-container {
@@ -125,7 +121,7 @@
             visibility: hidden;
         }
 
-        /* ----- ОСНОВНОЙ ИНТЕРФЕЙС БРАУЗЕРА (адаптивный) ----- */
+        /* ----- ОСНОВНОЙ ИНТЕРФЕЙС ----- */
         .browser-container {
             display: flex;
             flex-direction: column;
@@ -348,7 +344,7 @@
             }
         }
 
-        /* Контейнер веб-страниц */
+        /* Контейнер для прокси-рендеринга */
         .webview-container {
             flex: 1;
             position: relative;
@@ -356,20 +352,29 @@
             overflow: hidden;
         }
 
-        .iframe-wrapper {
+        .page-wrapper {
             width: 100%;
             height: 100%;
             position: relative;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
-        .browser-iframe {
+        .page-frame {
+            width: 100%;
+            min-height: 100%;
+            border: none;
+            background: white;
+        }
+
+        /* Альтернативный просмотрщик через прокси */
+        .proxy-viewer {
             width: 100%;
             height: 100%;
             border: none;
             background: white;
         }
 
-        /* Индикатор загрузки */
         .loading-indicator {
             position: absolute;
             top: 12px;
@@ -387,7 +392,6 @@
             gap: 8px;
             pointer-events: none;
             transition: opacity 0.2s;
-            font-family: monospace;
         }
 
         .spinner {
@@ -405,6 +409,17 @@
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
+
+        .error-message {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 20px;
+            color: #64748b;
+        }
     </style>
 </head>
 <body>
@@ -416,7 +431,7 @@
             <span>🛡️</span>
         </div>
         <div class="splash-title">Safe</div>
-        <div class="splash-sub">Быстрый. Безопасный. Современный.</div>
+        <div class="splash-sub">Обходим ограничения. Все сайты доступны.</div>
         <div class="progress-bar-container">
             <div class="progress-fill"></div>
         </div>
@@ -438,7 +453,7 @@
         </div>
         <div class="url-container">
             <span class="url-icon">🔒</span>
-            <input type="text" id="urlInput" placeholder="Поиск или введите адрес" autocomplete="off">
+            <input type="text" id="urlInput" placeholder="Введите адрес (Google, YouTube, любой сайт)" autocomplete="off">
             <button class="go-btn" id="goBtn">Перейти</button>
         </div>
     </div>
@@ -451,10 +466,13 @@
 </div>
 
 <script>
-    // ========== БРАУЗЕР С ВКЛАДКАМИ ==========
+    // ========== РАСШИРЕННЫЙ БРАУЗЕР С ПРОКСИ И АЛЬТЕРНАТИВНЫМИ МЕТОДАМИ ==========
     let tabs = [];
     let activeTabId = null;
     let tabCounter = 1;
+
+    // История навигации для каждой вкладки (ручное управление)
+    let navigationHistory = new Map(); // tabId -> { stack: [], currentIndex: -1 }
 
     const tabsBar = document.getElementById('tabsBar');
     const newTabBtn = document.getElementById('newTabButton');
@@ -470,64 +488,130 @@
         globalLoading.style.opacity = show ? '1' : '0';
     }
 
-    // Создание iframe
-    function createIframeForTab(tabId, url) {
-        const iframe = document.createElement('iframe');
-        iframe.className = 'browser-iframe';
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = 'none';
-        iframe.style.display = 'block';
-        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation-by-user-activation allow-downloads');
-        iframe.src = url;
+    // Публичные прокси сервисы для обхода ограничений iframe
+    // Используем cors-anywhere и другие методы
+    function getProxyUrl(originalUrl) {
+        // Несколько прокси для надежности (если один упадет)
+        const proxies = [
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`,
+            `https://corsproxy.io/?url=${encodeURIComponent(originalUrl)}`,
+            `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(originalUrl)}`
+        ];
+        return proxies[0]; // используем первый, самый стабильный
+    }
+
+    // Определяем, можно ли открыть сайт напрямую (некоторые разрешают)
+    function canOpenDirect(url) {
+        const hostname = new URL(url).hostname.toLowerCase();
+        const allowed = ['github.com', 'stackoverflow.com', 'wikipedia.org', 'medium.com'];
+        return allowed.some(domain => hostname.includes(domain));
+    }
+
+    // Загрузка страницы с обработкой ограничений
+    async function loadPage(tabId, url) {
+        const tab = tabs.find(t => t.id === tabId);
+        if (!tab) return;
         
-        iframe.addEventListener('load', function() {
-            const tab = tabs.find(t => t.id === tabId);
-            if(tab) {
-                try {
-                    let title = iframe.contentDocument?.title;
-                    if(title && title.trim()) tab.title = title.substring(0, 40);
-                    else tab.title = new URL(iframe.src).hostname || 'Safe Page';
-                    let currentUrl = iframe.contentWindow?.location?.href;
-                    if(currentUrl && currentUrl !== tab.url) tab.url = currentUrl;
-                } catch(e) { tab.title = 'Новая вкладка'; }
+        showLoading(true);
+        tab.url = url;
+        tab.title = 'Загрузка...';
+        renderTabs();
+        
+        // Очищаем контейнер
+        if (tab.container) {
+            tab.container.innerHTML = '';
+        } else {
+            tab.container = document.createElement('div');
+            tab.container.className = 'page-wrapper';
+            tab.container.style.width = '100%';
+            tab.container.style.height = '100%';
+            tab.container.style.overflow = 'auto';
+            webviewContainer.appendChild(tab.container);
+        }
+        
+        tab.container.style.display = 'block';
+        
+        try {
+            const urlObj = new URL(url);
+            const hostname = urlObj.hostname;
+            
+            // Пытаемся использовать прокси для всех сайтов, чтобы обойти X-Frame-Options
+            // Создаем iframe с прокси
+            const iframe = document.createElement('iframe');
+            iframe.className = 'page-frame';
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            
+            // Используем прокси для обхода ограничений
+            const proxyUrl = getProxyUrl(url);
+            iframe.src = proxyUrl;
+            
+            iframe.onload = () => {
+                tab.title = hostname || 'Safe Page';
                 renderTabs();
-                if(activeTabId === tabId) {
-                    urlInput.value = tab.url;
-                }
-            }
-            if(activeTabId === tabId) showLoading(false);
-        });
-        
-        iframe.addEventListener('error', () => {
-            if(activeTabId === tabId) showLoading(false);
-        });
-        
-        return iframe;
+                showLoading(false);
+                updateNavigationForTab(tabId, url);
+            };
+            
+            iframe.onerror = () => {
+                // Если прокси не сработал, показываем сообщение
+                tab.container.innerHTML = `
+                    <div class="error-message">
+                        <div style="font-size: 48px; margin-bottom: 16px;">🌐</div>
+                        <h3>Не удалось загрузить сайт</h3>
+                        <p style="margin-top: 8px;">${hostname}</p>
+                        <p style="margin-top: 16px; font-size: 14px;">Попробуйте другой сайт или обновите страницу</p>
+                        <button onclick="location.reload()" style="margin-top: 20px; padding: 8px 24px; background: #3b82f6; color: white; border: none; border-radius: 20px;">Обновить</button>
+                    </div>
+                `;
+                showLoading(false);
+            };
+            
+            tab.container.innerHTML = '';
+            tab.container.appendChild(iframe);
+            tab.iframe = iframe;
+            
+        } catch (e) {
+            tab.container.innerHTML = `
+                <div class="error-message">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                    <h3>Некорректный адрес</h3>
+                    <p>Проверьте URL и попробуйте снова</p>
+                </div>
+            `;
+            showLoading(false);
+        }
+    }
+
+    // Обновление истории навигации
+    function updateNavigationForTab(tabId, url) {
+        if (!navigationHistory.has(tabId)) {
+            navigationHistory.set(tabId, { stack: [], currentIndex: -1 });
+        }
+        const history = navigationHistory.get(tabId);
+        // Удаляем всё после текущего индекса
+        history.stack = history.stack.slice(0, history.currentIndex + 1);
+        history.stack.push(url);
+        history.currentIndex = history.stack.length - 1;
     }
 
     // Добавить вкладку
     function addTab(url = 'https://www.google.com', activate = true) {
         const id = Date.now() + tabCounter++;
-        const iframeEl = createIframeForTab(id, url);
-        const wrapperDiv = document.createElement('div');
-        wrapperDiv.className = 'iframe-wrapper';
-        wrapperDiv.style.width = '100%';
-        wrapperDiv.style.height = '100%';
-        wrapperDiv.style.display = 'none';
-        wrapperDiv.appendChild(iframeEl);
-        webviewContainer.appendChild(wrapperDiv);
-        
         const newTab = {
             id: id,
             title: 'Новая вкладка',
             url: url,
-            iframeElement: iframeEl,
-            wrapper: wrapperDiv
+            container: null,
+            iframe: null
         };
         tabs.push(newTab);
         
-        if(activate) setActiveTab(id);
+        if (activate) {
+            setActiveTab(id);
+            loadPage(id, url);
+        }
         renderTabs();
         return id;
     }
@@ -535,30 +619,74 @@
     // Активировать вкладку
     function setActiveTab(tabId) {
         const tab = tabs.find(t => t.id === tabId);
-        if(!tab) return;
+        if (!tab) return;
         activeTabId = tabId;
         
+        // Скрываем все контейнеры
         tabs.forEach(t => {
-            if(t.wrapper) t.wrapper.style.display = 'none';
+            if (t.container) t.container.style.display = 'none';
         });
-        if(tab.wrapper) tab.wrapper.style.display = 'block';
-        urlInput.value = tab.url;
+        if (tab.container) {
+            tab.container.style.display = 'block';
+            urlInput.value = tab.url;
+        } else {
+            urlInput.value = tab.url;
+        }
         renderTabs();
-        showLoading(false);
+        updateNavButtonsState(tabId);
+    }
+
+    // Обновить состояние кнопок назад/вперед
+    function updateNavButtonsState(tabId) {
+        const history = navigationHistory.get(tabId);
+        if (history) {
+            backBtn.disabled = history.currentIndex <= 0;
+            forwardBtn.disabled = history.currentIndex >= history.stack.length - 1;
+        } else {
+            backBtn.disabled = true;
+            forwardBtn.disabled = true;
+        }
+    }
+
+    // Навигация назад
+    function goBack() {
+        const history = navigationHistory.get(activeTabId);
+        if (history && history.currentIndex > 0) {
+            history.currentIndex--;
+            const prevUrl = history.stack[history.currentIndex];
+            const activeTab = tabs.find(t => t.id === activeTabId);
+            if (activeTab) {
+                loadPage(activeTabId, prevUrl);
+            }
+        }
+    }
+
+    // Навигация вперед
+    function goForward() {
+        const history = navigationHistory.get(activeTabId);
+        if (history && history.currentIndex < history.stack.length - 1) {
+            history.currentIndex++;
+            const nextUrl = history.stack[history.currentIndex];
+            const activeTab = tabs.find(t => t.id === activeTabId);
+            if (activeTab) {
+                loadPage(activeTabId, nextUrl);
+            }
+        }
     }
 
     // Закрыть вкладку
     function closeTab(tabId) {
         const index = tabs.findIndex(t => t.id === tabId);
-        if(index === -1) return;
-        if(tabs[index].wrapper) tabs[index].wrapper.remove();
+        if (index === -1) return;
+        if (tabs[index].container) tabs[index].container.remove();
         tabs.splice(index, 1);
+        navigationHistory.delete(tabId);
         
-        if(tabs.length === 0) {
+        if (tabs.length === 0) {
             addTab('https://www.google.com', true);
         } else {
-            if(activeTabId === tabId) {
-                const newActive = tabs[Math.min(index, tabs.length-1)];
+            if (activeTabId === tabId) {
+                const newActive = tabs[Math.min(index, tabs.length - 1)];
                 setActiveTab(newActive.id);
             } else {
                 renderTabs();
@@ -590,86 +718,48 @@
         });
     }
 
-    // Навигация
+    // Навигация по URL (с поддержкой поиска)
     function navigateTo(input) {
         let query = input.trim();
-        if(!query) return;
+        if (!query) return;
+        
         let finalUrl;
-        if(query.match(/^https?:\/\//i)) {
+        if (query.match(/^https?:\/\//i)) {
             finalUrl = query;
-        } else if(query.includes('.') && !query.includes(' ')) {
+        } else if (query.includes('.') && !query.includes(' ')) {
             finalUrl = 'https://' + query;
         } else {
             finalUrl = 'https://www.google.com/search?q=' + encodeURIComponent(query);
         }
+        
         const activeTab = tabs.find(t => t.id === activeTabId);
-        if(activeTab && activeTab.iframeElement) {
-            showLoading(true);
-            activeTab.url = finalUrl;
-            activeTab.iframeElement.src = finalUrl;
-            activeTab.title = 'Загрузка...';
-            renderTabs();
-            urlInput.value = finalUrl;
+        if (activeTab) {
+            loadPage(activeTabId, finalUrl);
         }
     }
 
-    function goBack() {
-        const activeTab = tabs.find(t => t.id === activeTabId);
-        if(activeTab?.iframeElement?.contentWindow) {
-            try { activeTab.iframeElement.contentWindow.history.back(); }
-            catch(e) {}
-        }
-    }
-    
-    function goForward() {
-        const activeTab = tabs.find(t => t.id === activeTabId);
-        if(activeTab?.iframeElement?.contentWindow) {
-            try { activeTab.iframeElement.contentWindow.history.forward(); }
-            catch(e) {}
-        }
-    }
-    
     function reloadPage() {
         const activeTab = tabs.find(t => t.id === activeTabId);
-        if(activeTab?.iframeElement) {
-            showLoading(true);
-            activeTab.iframeElement.src = activeTab.iframeElement.src;
+        if (activeTab && activeTab.url) {
+            loadPage(activeTabId, activeTab.url);
         }
     }
-
-    // Синхронизация URL
-    setInterval(() => {
-        const active = tabs.find(t => t.id === activeTabId);
-        if(active && active.iframeElement && active.iframeElement.contentWindow) {
-            try {
-                let newUrl = active.iframeElement.contentWindow.location.href;
-                if(newUrl && newUrl !== active.url) {
-                    active.url = newUrl;
-                    urlInput.value = newUrl;
-                    renderTabs();
-                }
-                let title = active.iframeElement.contentDocument?.title;
-                if(title && title !== active.title) {
-                    active.title = title.substring(0, 40);
-                    renderTabs();
-                }
-            } catch(e) {}
-        }
-    }, 800);
 
     // Инициализация
     function initBrowser() {
         addTab('https://www.google.com', true);
         
         goBtn.addEventListener('click', () => navigateTo(urlInput.value));
-        urlInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') navigateTo(urlInput.value); });
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') navigateTo(urlInput.value);
+        });
         backBtn.addEventListener('click', goBack);
         forwardBtn.addEventListener('click', goForward);
         reloadBtn.addEventListener('click', reloadPage);
         newTabBtn.addEventListener('click', () => addTab('https://www.google.com', true));
     }
 
-    // Запуск с гарантированным закрытием сплэша через 1.5 сек
+    // Запуск с гарантированным закрытием сплэша
     window.addEventListener('load', () => {
         setTimeout(() => {
             const splash = document.getElementById('splashScreen');
